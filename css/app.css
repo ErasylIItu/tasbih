@@ -222,3 +222,12 @@ main.screen::before { content: ''; position: fixed; inset: 0; z-index: -1; backg
   .c-plus.go { animation-duration: 1ms; }
   * { transition-duration: 1ms !important; }
 }
+
+/* ---------- iPhone ---------- */
+/* значок всегда точно в центре круглой кнопки, как бы Safari ни раскладывал содержимое кнопки */
+.icon-btn { position: relative; }
+.icon-btn svg.i { position: absolute; left: 50%; top: 50%; margin: -12px 0 0 -12px; }
+/* установленное приложение: растягиваем на весь экран, иначе внизу остаётся чёрная полоса */
+@media (display-mode: standalone) {
+  #app { bottom: auto; height: 100vh; }
+}

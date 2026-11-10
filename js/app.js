@@ -112,7 +112,8 @@ function renderHome() {
       ${card('evening', '#seq/evening')}
     </nav>
     <button class="row-btn" type="button" data-go="#remind">${icon('bell')}<div><b>${t.reminders}</b><small>${store.reminders.join(' · ') || t.remindersSub}</small></div>${icon('next')}</button>
-    <button class="row-btn" type="button" id="homeSound" aria-pressed="${store.sound}">${icon(store.sound ? 'sound' : 'mute')}<div><b>${t.sound}</b><small>${store.sound ? 'On' : 'Off'}</small></div></button>  </div>`;
+    <button class="row-btn" type="button" id="homeSound" aria-pressed="${store.sound}">${icon(store.sound ? 'sound' : 'mute')}<div><b>${t.sound}</b><small>${store.sound ? 'On' : 'Off'}</small></div></button>
+    <p class="note">v3</p>  </div>`;
   show('home');
 }
 
@@ -376,3 +377,12 @@ function fitText() {
   }
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if ($('#counter').classList.contains('active')) fitText(); });
+
+/* когда телефон скачал новую версию — один раз перезагружаем страницу, чтобы она сразу применилась */
+if ('serviceWorker' in navigator) {
+  let hadController = !!navigator.serviceWorker.controller, reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded) { reloaded = true; save(true); location.reload(); }
+    hadController = true;
+  });
+}
