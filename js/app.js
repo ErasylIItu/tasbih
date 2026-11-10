@@ -173,7 +173,7 @@ document.addEventListener('visibilitychange', () => {
   if (!$('#counter').classList.contains('active')) return;
   if (document.hidden) stopLoop(); else { startLoop(); keepAwake(); }
 });
-window.addEventListener('resize', () => { if ($('#counter').classList.contains('active')) { beads.resize(); fx.resize(); fx.setScene(S.scene); } });
+window.addEventListener('resize', () => { if ($('#counter').classList.contains('active')) { beads.resize(); fx.resize(); fx.setScene(S.scene); fitText(); } });
 
 function setBg(scene) {
   const a = $('#bgA'), b = $('#bgB'), on = bgFlip ? a : b, off = bgFlip ? b : a;
@@ -187,7 +187,7 @@ function paintStep(animate) {
   const t = L(), lang = store.lang, st = S.steps[S.idx], z = Z[st.key], box = $('#cText');
   const fill = () => {
     $('#cAr').textContent = z.ar; $('#cTr').textContent = z.t.kz; $('#cMn').textContent = z.m[lang];
-    box.className = 'c-text ' + sizeClass(z.ar); box.scrollTop = 0;
+    box.className = 'c-text ' + sizeClass(z.ar); box.scrollTop = 0; fitText();
   };
   if (animate) { box.classList.add('out'); setTimeout(fill, 300); } else fill();
   if (S.scene !== st.scene || !animate) setBg(st.scene);
@@ -363,3 +363,16 @@ route();
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
+
+/* ---------- подгонка текста: уменьшаем шрифт, пока дуа не поместится целиком ---------- */
+function fitText() {
+  const box = $('#cText'), els = [$('#cAr'), $('#cTr'), $('#cMn')];
+  els.forEach((el) => { el.style.fontSize = ''; el.style.lineHeight = ''; });
+  const base = els.map((el) => parseFloat(getComputedStyle(el).fontSize));
+  const min = [17, 12.5, 12];
+  for (let k = 0.95; k >= 0.55 && box.scrollHeight > box.clientHeight + 1; k -= 0.05) {
+    els.forEach((el, i) => { el.style.fontSize = Math.max(min[i], base[i] * k) + 'px'; });
+    els[0].style.lineHeight = k < 0.8 ? '1.85' : '';
+  }
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if ($('#counter').classList.contains('active')) fitText(); });
