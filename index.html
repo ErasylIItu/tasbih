@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Тасбих</title>
+<meta name="description" content="Тасбих, зикры, салауаты и азкары после намаза">
+<meta name="theme-color" content="#071512">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Тасбих">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="img/icons/icon-180.png">
+<link rel="icon" type="image/png" href="img/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ГЛАВНАЯ -->
+  <main id="home" class="screen"></main>
+
+  <!-- СПИСОК / ВЫБОР -->
+  <main id="list" class="screen"></main>
+
+  <!-- НАПОМИНАНИЯ -->
+  <main id="remind" class="screen"></main>
+
+  <!-- СЧЁТЧИК -->
+  <section id="counter" class="screen" aria-live="off">
+    <div class="c-bg" id="bgA"></div>
+    <div class="c-bg" id="bgB"></div>
+    <canvas id="fx" class="c-fx" aria-hidden="true"></canvas>
+    <div class="c-scrim" aria-hidden="true"></div>
+
+    <header class="c-top">
+      <button class="icon-btn" id="btnBack" type="button"></button>
+      <div class="c-label" id="cLabel"></div>
+      <div class="c-actions">
+        <button class="icon-btn" id="btnGoal" type="button"></button>
+        <button class="icon-btn" id="btnReset" type="button"></button>
+        <button class="icon-btn" id="btnSound" type="button"></button>
+      </div>
+    </header>
+
+    <div class="c-text" id="cText">
+      <p class="ar" id="cAr" dir="rtl" lang="ar"></p>
+      <span class="c-div" aria-hidden="true"></span>
+      <p class="tr" id="cTr"></p>
+      <p class="mn" id="cMn"></p>
+    </div>
+
+    <canvas id="beads" class="c-beads" aria-hidden="true"></canvas>
+    <span class="c-plus" id="cPlus" aria-hidden="true">+1</span>
+
+    <div class="c-ring" id="cRing">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="ring-bg" cx="50" cy="50" r="46"/>
+        <circle class="ring-fg" id="ringFg" cx="50" cy="50" r="46" transform="rotate(-90 50 50)"/>
+        <circle class="ring-dot" id="ringDot" cx="50" cy="4" r="2.6"/>
+      </svg>
+      <div class="ring-num">
+        <strong id="cCount">0</strong>
+        <small id="cTarget"></small>
+      </div>
+    </div>
+    <div class="c-dots" id="cDots" aria-hidden="true"></div>
+    <p class="c-hint" id="cHint"></p>
+
+    <button class="c-tap" id="tapZone" type="button"></button>
+
+    <div class="c-done" id="cDone" hidden>
+      <div class="done-card" role="dialog" aria-modal="true" aria-labelledby="doneTitle">
+        <span class="done-bar" aria-hidden="true"></span>
+        <p class="ar done-ar" dir="rtl" lang="ar">تَقَبَّلَ اللَّهُ مِنَّا وَمِنْكُمْ</p>
+        <p class="done-tl" id="doneTl"></p>
+        <h2 id="doneTitle"></h2>
+        <div class="done-btns" id="doneBtns"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ВЫБОР ЦЕЛИ -->
+  <div class="sheet-wrap" id="sheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <h2 id="sheetTitle"></h2>
+      <div class="chips" id="goalChips"></div>
+      <label class="field">
+        <span id="goalCustomLabel"></span>
+        <input id="goalCustom" type="number" inputmode="numeric" min="1" max="100000" placeholder="500">
+      </label>
+      <div class="sheet-btns">
+        <button class="btn ghost" id="sheetCancel" type="button"></button>
+        <button class="btn" id="sheetSave" type="button"></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+img/raw/
+.claude/
+.vscode/
+node_modules/
