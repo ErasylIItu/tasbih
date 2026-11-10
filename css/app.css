@@ -231,3 +231,29 @@ main.screen::before { content: ''; position: fixed; inset: 0; z-index: -1; backg
 @media (display-mode: standalone) {
   #app { bottom: auto; height: 100vh; }
 }
+
+/* ---------- план на сегодня ---------- */
+.pbar { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: rgba(255, 255, 255, .16); overflow: hidden; }
+.pbar > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width var(--t-med) var(--ease); }
+.nudge span b { display: block; font-size: 15px; font-weight: 800; }
+.nudge span small { display: block; font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nudge.ok { background: rgba(108, 192, 203, .16); border-color: rgba(108, 192, 203, .5); }
+.nudge.ok .pbar > i, .task.ok .pbar > i { background: var(--bead); }
+.plan-sum { margin-bottom: 16px; }
+.plan-sum b { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.task { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+.task-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 8px; text-align: left; border-radius: 14px; transition: background var(--t-fast); }
+.task-main:active { background: var(--surface-2); }
+.task-check { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .45); display: grid; place-items: center; }
+.task-check svg.i { width: 16px; height: 16px; stroke-width: 3; }
+.task.ok .task-check { background: var(--bead); border-color: var(--bead); color: #06231f; }
+.task-body { flex: 1; min-width: 0; }
+.task-body b { display: block; font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-body small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-n { flex: none; min-width: 72px; min-height: 44px; padding: 0 10px; border-radius: 12px; background: rgba(0, 0, 0, .28); font-weight: 800; font-size: 13px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.task.ok .task-n { color: var(--bead); }
+.sec { margin: 20px 4px 10px; font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.zitem[disabled] { opacity: .5; }
+.zlist { grid-template-columns: minmax(0, 1fr); }
+.task { min-width: 0; }
+main.screen { overflow-x: hidden; }

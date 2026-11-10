@@ -12,6 +12,7 @@ const ICON = {
   next: '<path d="M9 5l7 7-7 7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   trash: '<path d="M5 7h14M10 7V4.5h4V7M7 7l1 12.5h8L17 7M10.5 11v5M13.5 11v5"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   cal: '<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4M12 13v4M10 15h4"/>'
 };
 const icon = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
@@ -19,7 +20,8 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 /* ---------- хранилище ---------- */
 const store = Object.assign(
-  { lang: 'ru', sound: true, days: {}, total: 0, sessions: 0, counts: {}, targets: {}, reminders: ['08:00', '20:00'], hintSeen: 0 },
+  { lang: 'ru', sound: true, days: {}, total: 0, sessions: 0, counts: {}, targets: {}, reminders: ['08:00', '20:00'], hintSeen: 0,
+    plan: [['istighfar', 100], ['salawat', 100], ['subhan', 100], ['hamd', 100], ['tahlil', 100]], planDay: '', planDone: {} },
   (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })()
 );
 let saveTimer = 0;
@@ -68,6 +70,8 @@ function route() {
   if (p[0] === 'one' && LISTS[p[1]] && Z[p[2]]) return openOne(p[1], p[2]);
   if (p[0] === 'list' && LISTS[p[1]]) return renderList(p[1]);
   if (p[0] === 'prayer') return renderPrayer();
+  if (p[0] === 'plan') return p[1] === 'add' ? renderPlanAdd() : renderPlan();
+  if (p[0] === 'task' && planItem(p[1])) return openTask(p[1]);
   if (p[0] === 'remind') return renderRemind();
   renderHome();
 }
@@ -77,9 +81,7 @@ window.addEventListener('hashchange', () => { sessionStorage.setItem('nav', '1')
 function renderHome() {
   const t = L(), today = store.days[dayKey()] || 0, week = lastDays(7), max = Math.max(1, ...week.map((d) => d.n));
   const weekSum = week.reduce((a, d) => a + d.n, 0);
-  const first = [...store.reminders].sort()[0];
-  const now = new Date(), hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const nudge = today === 0 && first && hm >= first;
+  const ps = planStats();
   const card = (id, href, wide, sub) => `
     <button class="card${wide ? ' wide' : ''}" type="button" data-go="${href}" style="background-image:url(img/bg/${CARD_BG[id]}.webp)">
       <span class="card-ar" lang="ar" dir="rtl" aria-hidden="true">${CARD_AR[id]}</span>
@@ -93,7 +95,7 @@ function renderHome() {
         <button type="button" data-lang="kz" aria-pressed="${store.lang === 'kz'}">ҚАЗ</button>
       </div>
     </header>
-    ${nudge ? `<div class="nudge"><span>${t.notYet}</span><button class="btn" type="button" data-go="#prayer">${t.start}</button></div>` : ''}
+    <div class="nudge${ps.all ? ' ok' : ''}"><span><b>${ps.all ? t.planAllDone : t.plan}</b><small>${ps.done} / ${ps.total} ${t.planOf}</small><i class="pbar"><i style="width:${ps.pct}%"></i></i></span><button class="btn" type="button" data-go="#plan">${ps.all ? t.open : ps.any ? t.contShort : t.start}</button></div>
     <section class="stat" aria-label="${t.stats}">
       <div class="stat-row">
         <div class="stat-cell main"><strong>${fmt(today)}</strong><span>${t.today}</span></div>
@@ -113,7 +115,7 @@ function renderHome() {
     </nav>
     <button class="row-btn" type="button" data-go="#remind">${icon('bell')}<div><b>${t.reminders}</b><small>${store.reminders.join(' · ') || t.remindersSub}</small></div>${icon('next')}</button>
     <button class="row-btn" type="button" id="homeSound" aria-pressed="${store.sound}">${icon(store.sound ? 'sound' : 'mute')}<div><b>${t.sound}</b><small>${store.sound ? 'On' : 'Off'}</small></div></button>
-    <p class="note">v3</p>  </div>`;
+    <p class="note">v4</p>  </div>`;
   show('home');
 }
 
@@ -198,7 +200,7 @@ function paintStep(animate) {
     const title = S.id.startsWith('prayer') ? t.prayer : t[S.id];
     $('#cLabel').textContent = `${title} · ${st.g} ${t.of} ${S.groups}`;
     $('#cDots').innerHTML = Array.from({ length: S.groups }, (_, i) => `<i class="${i + 1 < st.g ? 'done' : i + 1 === st.g ? 'cur' : ''}"></i>`).join('');
-  } else { $('#cLabel').textContent = t[S.cat]; $('#cDots').innerHTML = ''; }
+  } else { $('#cLabel').textContent = S.kind === 'task' ? t.plan : t[S.cat]; $('#cDots').innerHTML = ''; }
   $('#cRing').classList.remove('done');
   paintCount();
 }
@@ -245,6 +247,7 @@ function tap() {
   Sound.unlock();
   S.count++; addCount(1);
   if (S.kind === 'one') store.counts[S.id] = S.count;
+  if (S.kind === 'task') store.planDone[S.id] = S.count;
   beads.set(S.count, S.target); beads.tap();
   Sound.click(); haptic(10);
   const plus = $('#cPlus'); plus.classList.remove('go'); void plus.offsetWidth; plus.classList.add('go');
@@ -263,11 +266,19 @@ function nextStep() {
   setTimeout(() => { $('#cText').classList.remove('out'); S.locked = false; }, 340);
 }
 function finish() {
-  const t = L(), seq = S.kind === 'seq';
+  const t = L(), seq = S.kind === 'seq', task = S.kind === 'task';
   if (seq && S.id.startsWith('prayer')) store.sessions++;
-  if (!seq) store.counts[S.id] = 0;
+  if (S.kind === 'one') store.counts[S.id] = 0;
   save(true);
   $('#doneTitle').textContent = seq && S.id.startsWith('prayer') ? t.doneTitle : t.doneZikr;
+  if (task) {
+    const nx = store.plan.find(([k, n]) => (store.planDone[k] || 0) < n);
+    $('#doneTitle').textContent = nx ? t.doneZikr : t.planAllDone;
+    $('#doneBtns').innerHTML = `${nx ? `<button class="btn" type="button" data-done="next" data-key="${nx[0]}">${t.nextTask}</button>` : ''}
+      <button class="btn ghost" type="button" data-done="plan">${t.toPlan}</button>
+      <button class="btn ghost" type="button" data-done="home">${t.home}</button>`;
+    $('#cDone').hidden = false; $('#doneBtns button').focus({ preventScroll: true }); return;
+  }
   $('#doneBtns').innerHTML = `<button class="btn" type="button" data-done="again">${t.again}</button>
     ${seq ? '' : `<button class="btn ghost" type="button" data-done="cont">${t.cont}</button>`}
     <button class="btn ghost" type="button" data-done="home">${t.home}</button>`;
@@ -278,6 +289,8 @@ $('#doneBtns').addEventListener('click', (e) => {
   const a = e.target.closest('[data-done]'); if (!a) return;
   const act = a.dataset.done;
   if (act === 'home') return go('#home');
+  if (act === 'plan') return location.replace('#plan');
+  if (act === 'next') return location.replace('#task/' + a.dataset.key);
   $('#cDone').hidden = true; S.locked = false;
   if (act === 'again') { S.idx = 0; S.count = 0; if (S.kind === 'one') store.counts[S.id] = 0; paintStep(false); }
   if (act === 'cont') { S.count = S.target; S.steps[0].n = 0; store.targets[S.id] = 0; store.counts[S.id] = S.count; save(true); paintStep(false); }
@@ -290,31 +303,31 @@ $('#btnBack').addEventListener('click', () => { save(true); back(); });
 $('#btnSound').addEventListener('click', () => { store.sound = !store.sound; Sound.on = store.sound; save(true); Sound.unlock(); Sound.click(); paintChrome(); });
 $('#btnReset').addEventListener('click', () => {
   if (S.kind === 'seq') { S.idx = 0; S.count = 0; S.locked = false; paintStep(false); }
-  else { S.count = 0; store.counts[S.id] = 0; save(true); S.locked = false; beads.set(0, S.target); paintCount(); $('#cRing').classList.remove('done'); }
+  else { S.count = 0; if (S.kind === 'task') store.planDone[S.id] = 0; else store.counts[S.id] = 0; save(true); S.locked = false; beads.set(0, S.target); paintCount(); $('#cRing').classList.remove('done'); }
 });
 
 /* ---------- выбор цели ---------- */
-let goalPick = 33;
-function openGoal() {
-  const t = L(); goalPick = S.target;
+let goalPick = 33, goalOpts = [33, 99, 100, 1000, 0], goalSave = null;
+function openGoal(value, opts, onSave) {
+  const t = L(); goalPick = value; goalOpts = opts; goalSave = onSave;
   $('#sheetTitle').textContent = t.goal; $('#goalCustomLabel').textContent = t.custom;
   $('#sheetCancel').textContent = t.cancel; $('#sheetSave').textContent = t.save;
-  $('#goalCustom').value = [33, 99, 100, 1000, 0].includes(goalPick) ? '' : goalPick;
+  $('#goalCustom').value = goalOpts.includes(goalPick) ? '' : goalPick;
   paintChips(); $('#sheet').hidden = false;
 }
 function paintChips() {
-  $('#goalChips').innerHTML = [33, 99, 100, 1000, 0].map((n) => `<button type="button" data-n="${n}" aria-pressed="${goalPick === n}">${n || '∞ ' + L().noLimit}</button>`).join('');
+  $('#goalChips').innerHTML = goalOpts.map((n) => `<button type="button" data-n="${n}" aria-pressed="${goalPick === n}">${n || '∞ ' + L().noLimit}</button>`).join('');
 }
-$('#btnGoal').addEventListener('click', openGoal);
+$('#btnGoal').addEventListener('click', () => openGoal(S.target, [33, 99, 100, 1000, 0], (n) => {
+  store.targets[S.id] = n; S.steps[0].n = n; S.target = n;
+  if (n > 0 && S.count >= n) { S.count = 0; store.counts[S.id] = 0; }
+  save(true); S.locked = false; paintStep(false);
+}));
 $('#goalChips').addEventListener('click', (e) => { const b = e.target.closest('[data-n]'); if (b) { goalPick = +b.dataset.n; $('#goalCustom').value = ''; paintChips(); } });
 $('#goalCustom').addEventListener('input', (e) => { const v = Math.floor(+e.target.value); if (v > 0) { goalPick = Math.min(100000, v); paintChips(); } });
 $('#sheetCancel').addEventListener('click', () => { $('#sheet').hidden = true; });
 $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') $('#sheet').hidden = true; });
-$('#sheetSave').addEventListener('click', () => {
-  store.targets[S.id] = goalPick; S.steps[0].n = goalPick; S.target = goalPick;
-  if (goalPick > 0 && S.count >= goalPick) { S.count = 0; store.counts[S.id] = 0; }
-  save(true); $('#sheet').hidden = true; S.locked = false; paintStep(false);
-});
+$('#sheetSave').addEventListener('click', () => { $('#sheet').hidden = true; if (goalSave) goalSave(goalPick); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('#sheet').hidden) $('#sheet').hidden = true; } });
 
 /* ---------- напоминания (через календарь телефона) ---------- */
@@ -385,4 +398,72 @@ if ('serviceWorker' in navigator) {
     if (hadController && !reloaded) { reloaded = true; save(true); location.reload(); }
     hadController = true;
   });
+}
+
+/* ---------- план на сегодня ---------- */
+const SCENE_OF = {}, CAT_OF = {};
+Object.keys(LISTS).forEach((cat) => LISTS[cat].forEach(([k, , scene]) => { if (!SCENE_OF[k]) { SCENE_OF[k] = scene; CAT_OF[k] = cat; } }));
+function planToday() {
+  store.plan = (store.plan || []).filter(([k]) => Z[k]);
+  if (store.planDay !== dayKey()) { store.planDay = dayKey(); store.planDone = {}; save(true); }
+}
+function planItem(key) { planToday(); return store.plan.find(([k]) => k === key); }
+function planStats() {
+  planToday();
+  let done = 0, sum = 0, need = 0;
+  store.plan.forEach(([k, n]) => { const c = Math.min(n, store.planDone[k] || 0); sum += c; need += n; if (c >= n) done++; });
+  const total = store.plan.length;
+  return { done, total, any: sum > 0, all: total > 0 && done === total, pct: need ? Math.round((sum / need) * 100) : 0 };
+}
+function renderPlan() {
+  const t = L(), lang = store.lang, ps = planStats();
+  $('#list').innerHTML = `<div class="wrap">${pageHead(t.plan)}
+    <div class="panel plan-sum"><b>${ps.all ? t.planAllDone : `${ps.done} / ${ps.total} ${t.planOf}`}</b><i class="pbar"><i style="width:${ps.pct}%"></i></i></div>
+    <div class="zlist">${store.plan.map(([k, n]) => {
+      const z = Z[k], c = Math.min(n, store.planDone[k] || 0), ok = c >= n;
+      return `<div class="task${ok ? ' ok' : ''}">
+        <button class="task-main" type="button" data-go="#task/${k}">
+          <span class="task-check" aria-hidden="true">${ok ? icon('check') : ''}</span>
+          <span class="task-body"><b>${esc(z.t.kz)}</b><small>${esc(z.m[lang])}</small>
+            <i class="pbar"><i style="width:${Math.round((c / n) * 100)}%"></i></i></span>
+        </button>
+        <button class="task-n" type="button" data-plan-n="${k}" aria-label="${t.goal}">${c} / ${n}</button>
+        <button class="icon-btn" type="button" data-plan-del="${k}" aria-label="${t.remDel}">${icon('trash')}</button>
+      </div>`;
+    }).join('') || `<p class="note">${t.planEmpty}</p>`}</div>
+    <button class="btn ghost block" type="button" data-go="#plan/add" style="margin-top:16px">${icon('plus')}${t.addZikr}</button>
+  </div>`;
+  show('list');
+}
+function renderPlanAdd() {
+  const t = L(), lang = store.lang; planToday();
+  const has = new Set(store.plan.map(([k]) => k)), seen = new Set();
+  $('#list').innerHTML = `<div class="wrap">${pageHead(t.addZikr)}${Object.keys(LISTS).map((cat) => `
+    <h2 class="sec">${t[cat]}</h2><div class="zlist">${LISTS[cat].filter(([k]) => !seen.has(k) && seen.add(k)).map(([k]) => {
+      const z = Z[k], inPlan = has.has(k);
+      return `<button class="zitem" type="button" data-plan-add="${k}" ${inPlan ? 'disabled' : ''}>
+        <p class="ar" lang="ar" dir="rtl">${z.ar}</p>
+        <div class="zmeta"><b>${esc(z.t.kz)}</b><span>${inPlan ? t.inPlan : '+'}</span></div>
+        <small>${esc(z.m[lang])}</small></button>`;
+    }).join('')}</div>`).join('')}</div>`;
+  show('list'); $('#list').scrollTop = 0;
+}
+const PLAN_OPTS = [33, 100, 300, 500, 1000];
+$('#list').addEventListener('click', (e) => {
+  const add = e.target.closest('[data-plan-add]'), del = e.target.closest('[data-plan-del]'), num = e.target.closest('[data-plan-n]');
+  if (add) {
+    const k = add.dataset.planAdd;
+    return openGoal(100, PLAN_OPTS, (n) => { if (n > 0 && !planItem(k)) { store.plan.push([k, n]); save(true); } back(); });
+  }
+  if (del) { store.plan = store.plan.filter(([k]) => k !== del.dataset.planDel); delete store.planDone[del.dataset.planDel]; save(true); return renderPlan(); }
+  if (num) {
+    const it = planItem(num.dataset.planN);
+    return openGoal(it[1], PLAN_OPTS, (n) => { if (n > 0) { it[1] = n; save(true); renderPlan(); } });
+  }
+});
+function openTask(key) {
+  const it = planItem(key), n = it[1];
+  let count = store.planDone[key] || 0; if (count >= n) { count = 0; store.planDone[key] = 0; }
+  Object.assign(S, { kind: 'task', id: key, cat: CAT_OF[key] || 'zikr', steps: [{ key, n, scene: SCENE_OF[key] || 'forest', g: 1 }], idx: 0, count, groups: 1, scene: '' });
+  enterCounter();
 }
