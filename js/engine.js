@@ -60,7 +60,7 @@ class Beads {
   constructor(canvas) {
     this.cv = canvas; this.c = canvas.getContext('2d');
     this.count = 0; this.pos = 0; this.vel = 0; this.target = 33;
-    this.pulse = 0; this.t = 0;
+    this.pulse = 0; this.t = 0; this.swing = 0; this.swingV = 0;
     this.resize();
   }
   resize() {
@@ -73,7 +73,7 @@ class Beads {
   }
   set(count, target, jump) {
     this.count = count; this.target = target;
-    if (jump) { this.pos = count; this.vel = 0; }
+    if (jump) { this.pos = count; this.vel = 0; this.swing = 0; this.swingV = 0; }
   }
   tap() { this.pulse = 1; }
   curveY(x) {
@@ -110,8 +110,10 @@ class Beads {
     c.beginPath(); c.ellipse(x - r * 0.36, y - r * 0.42, r * 0.2, r * 0.13, -0.6, 0, 7); c.fill();
   }
   tassel(x, y, r) {
-    const c = this.c, sway = REDUCED ? 0 : Math.sin(this.t * 1.6) * 2.2 + this.vel * 14;
     const len = r * 3.4, top = y + r * 0.9;
+    /* кисточка качается как маятник: угол ограничен, поэтому она не ложится набок */
+    const ang = REDUCED ? 0 : this.swing + Math.sin(this.t * 1.6) * 0.04;
+    const c = this.c, sway = Math.sin(ang) * len;
     c.fillStyle = '#f58a4a';
     c.beginPath(); c.arc(x, top + r * 0.25, r * 0.42, 0, 7); c.fill();
     const g = c.createLinearGradient(0, top, 0, top + len);
@@ -126,11 +128,20 @@ class Beads {
   }
   step(dt) {
     this.t += dt;
-    const k = 190, damp = 21;
-    const a = (this.count - this.pos) * k - this.vel * damp;
-    this.vel += a * dt; this.pos += this.vel * dt;
+    /* критически затухающая пружина: нитка плавно доезжает до места без рывка и без отскока назад.
+       Считаем мелкими шагами, чтобы движение было одинаково гладким при любой частоте кадров. */
+    const k = 105, damp = 2 * Math.sqrt(k), sk = 70, sd = 2 * 0.45 * Math.sqrt(sk);
+    for (let left = dt; left > 0; left -= 1 / 240) {
+      const h = Math.min(left, 1 / 240);
+      const a = (this.count - this.pos) * k - this.vel * damp;
+      this.vel += a * h; this.pos += this.vel * h;
+      /* маятник кисточки: отклоняется против движения нитки, не больше ~20° */
+      const want = Math.max(-0.35, Math.min(0.35, this.vel * 0.09));
+      this.swingV += ((want - this.swing) * sk - this.swingV * sd) * h;
+      this.swing += this.swingV * h;
+    }
     if (Math.abs(this.count - this.pos) < 0.0005 && Math.abs(this.vel) < 0.001) { this.pos = this.count; this.vel = 0; }
-    this.pulse = Math.max(0, this.pulse - dt * 2.6);
+    this.pulse *= Math.exp(-dt * 4.5);
   }
   draw() {
     const c = this.c, W = this.W, H = this.H, R = this.R;

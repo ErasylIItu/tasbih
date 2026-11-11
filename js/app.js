@@ -115,7 +115,7 @@ function renderHome() {
     </nav>
     <button class="row-btn" type="button" data-go="#remind">${icon('bell')}<div><b>${t.reminders}</b><small>${store.reminders.join(' · ') || t.remindersSub}</small></div>${icon('next')}</button>
     <button class="row-btn" type="button" id="homeSound" aria-pressed="${store.sound}">${icon(store.sound ? 'sound' : 'mute')}<div><b>${t.sound}</b><small>${store.sound ? 'On' : 'Off'}</small></div></button>
-    <p class="note">v5</p>  </div>`;
+    <p class="note">v6</p>  </div>`;
   show('home');
 }
 
