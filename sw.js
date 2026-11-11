@@ -1,5 +1,5 @@
 /* Офлайн. При изменении файлов меняйте номер версии. */
-const VERSION = 'tasbih-v4';
+const VERSION = 'tasbih-v5';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'js/data.js', 'js/engine.js', 'js/app.js', 'manifest.webmanifest',
   'img/icons/icon-180.png', 'img/icons/icon-192.png', 'img/icons/icon-512.png',
